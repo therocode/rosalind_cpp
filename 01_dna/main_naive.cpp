@@ -5,7 +5,20 @@
 std::string loadFile(const std::string& path)
 {
     std::ifstream inFile(path);
-    std::string result((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+
+    //determine the file length
+    inFile.seekg(0, std::ios_base::end);
+    size_t sizeInBytes = inFile.tellg();
+    inFile.seekg(0, std::ios_base::beg);
+
+    //create a string to store the data
+    std::string result;
+    result.resize(sizeInBytes + 1);
+
+    //load the data
+    inFile.read((&result[0]), sizeInBytes);
+    result.back() = '\0';
+
     return result;
 }
 
