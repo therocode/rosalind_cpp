@@ -138,86 +138,99 @@ static_assert(extractCCount(countTable[testCompressed]) == 1, "countTable is inc
 static_assert(extractGCount(countTable[testCompressed]) == 0, "countTable is incorrect");
 static_assert(extractTCount(countTable[testCompressed]) == 2, "countTable is incorrect");
 
-std::string loadFile(const std::string& path)
-{
-    std::ifstream inFile(path);
-    std::string result((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
-    return result;
-}
-
 std::vector<uint8_t> loadBinFile(const std::string& path)
 {
-    std::ifstream inFile(path, std::ios::binary);
+    std::ifstream inFile(path);
 
-    std::vector<uint8_t> result((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+    //determine the file length
+    inFile.seekg(0, std::ios_base::end);
+    size_t sizeInBytes = inFile.tellg();
+    inFile.seekg(0, std::ios_base::beg);
+
+    //create a vector to store the data
+    std::vector<uint8_t> result(sizeInBytes);
+
+    //load the data
+    inFile.read(reinterpret_cast<char*>(&result[0]), sizeInBytes);
+
     return result;
 }
 
-std::vector<int32_t> generateSamplingPoints(int32_t nSamplePoints, int32_t sampleLength, size_t dataLength)
+struct FileStuff
 {
+    std::vector<uint8_t> data;
+    size_t size;
+};
+
+FileStuff sampleBinFile(const std::string& path, int32_t nSamplePoints, int32_t nCharsSampled)
+{
+    std::ifstream inFile(path);
     std::ranlux48_base randomEngine((std::random_device()()));
 
-    std::vector<int32_t> pointPositions;
-    pointPositions.resize(nSamplePoints);
+    //create a vector to store the data
+    size_t sampleSizeInBytes = nCharsSampled * 4;
+    size_t sampledDataInBytes = nSamplePoints * nCharsSampled;
+    std::vector<uint8_t> result(sampledDataInBytes);
 
+    //determine the file length
+    inFile.seekg(0, std::ios_base::end);
+    size_t fileSize = inFile.tellg();
+
+    //load the data
     for(int32_t i = 0; i < nSamplePoints; ++i)
     {
-        int32_t position = randomEngine() % (dataLength - sampleLength);
-        pointPositions[i] = position;
+        size_t position = randomEngine() % (fileSize - nCharsSampled);
+        inFile.seekg(position);
+        inFile.read(reinterpret_cast<char*>(&result[nCharsSampled * i]), sampleSizeInBytes);
     }
 
-    return pointPositions;
+    return FileStuff({std::move(result), fileSize});
 }
-
 
 int main()
 {
     std::cout << "------------------\n";
     std::cout << "loading file\n";
-    //std::string data = loadFile("../tools_datageneration/textout.txt");
-    std::vector<uint8_t> data = loadBinFile("../tools_datageneration/binout.txt");
 
     int32_t nSamplePoints = 32768;
-    int32_t sampleLength = 1024;
+    int32_t nCharsSampled = 1024;
+
+    FileStuff filestuff = sampleBinFile("binout.txt", nSamplePoints, nCharsSampled);
 
     int32_t aAmount = 0;
     int32_t cAmount = 0;
     int32_t gAmount = 0;
     int32_t tAmount = 0;
 
+    int32_t actualAAmount = 268438936;
+    int32_t actualCAmount = 268450283;
+    int32_t actualGAmount = 268431926;
+    int32_t actualTAmount = 268420679;
+    float actualAAmountF = static_cast<float>(actualAAmount);
+    float actualCAmountF = static_cast<float>(actualCAmount);
+    float actualGAmountF = static_cast<float>(actualGAmount);
+    float actualTAmountF = static_cast<float>(actualTAmount);
+
     std::cout << "counting\n";
 
     uint64_t compressedCount = 0;
     int32_t currentCompressedCountCount = 0;
 
-    std::vector<int32_t> pointPositions = generateSamplingPoints(nSamplePoints, sampleLength, data.size());
-
-    for(int i : pointPositions)
+    for(uint8_t compressed : filestuff.data)
     {
-        std::vector<uint8_t> points;
-        points.resize(sampleLength);
+        compressedCount += countTable[compressed];
+        ++currentCompressedCountCount;
 
-        for(int j = 0; j < sampleLength; ++j)
+        //to prevent overflow of our individual 16-bit counters, we need to extract and restart counters every uint16_t-max / 4 iterations, based on worst case of data containing only 1 nucleotide
+        if(currentCompressedCountCount >= std::numeric_limits<uint16_t>::max() / 4)
         {
-            points[j] = data[i + j];
-        }
+            aAmount += extractACount(compressedCount);
+            cAmount += extractCCount(compressedCount);
+            gAmount += extractGCount(compressedCount);
+            tAmount += extractTCount(compressedCount);
 
-        for(int j = 0; j < sampleLength; ++j)
-        {
-            uint8_t compressed = points[j];
-            compressedCount += countTable[compressed];
-            ++currentCompressedCountCount;
-
-            if(currentCompressedCountCount >= std::numeric_limits<uint16_t>::max() / 4)
-            {
-                aAmount += extractACount(compressedCount);
-                cAmount += extractCCount(compressedCount);
-                gAmount += extractGCount(compressedCount);
-                tAmount += extractTCount(compressedCount);
-
-                compressedCount = 0;
-                currentCompressedCountCount = 0;
-            }
+            compressedCount = 0;
+            currentCompressedCountCount = 0;
         }
     }
 
@@ -226,11 +239,11 @@ int main()
     gAmount += extractGCount(compressedCount);
     tAmount += extractTCount(compressedCount);
 
-    std::cout << "After sampling " << nSamplePoints << " positions with " << sampleLength << " compressed chars each:\n";
+    std::cout << "After sampling " << nSamplePoints << " positions with " << nCharsSampled << " compressed chars each:\n";
     std::cout << aAmount << " " << cAmount << " " << gAmount << " " << tAmount << "\n";
 
-    int32_t samples = nSamplePoints * sampleLength;
-    float multiplier = static_cast<float>(samples) / static_cast<float>(data.size());
+    int32_t samples = nSamplePoints * nCharsSampled;
+    float multiplier = static_cast<float>(samples) / static_cast<float>(filestuff.size);
 
     int32_t newAAmount = static_cast<int32_t>(aAmount / multiplier);
     int32_t newCAmount = static_cast<int32_t>(cAmount / multiplier);
@@ -242,15 +255,15 @@ int main()
 
     std::cout << "Comparing to the actual data:\n";
     std::cout <<
-        268457953 - newAAmount << " " <<
-        268411614 - newCAmount << " " <<
-        268438975 - newGAmount << " " <<
-        268433282 - newTAmount << "\n";
+        actualAAmount - newAAmount << " " <<
+        actualCAmount - newCAmount << " " <<
+        actualGAmount - newGAmount << " " <<
+        actualTAmount - newTAmount << "\n";
 
     std::cout << "Percentage errors:\n";
     std::cout <<
-        (static_cast<float>(268457953) - static_cast<float>(newAAmount))/268457953.0f << " " <<
-        (static_cast<float>(268411614) - static_cast<float>(newCAmount))/268411614.0f << " " <<
-        (static_cast<float>(268438975) - static_cast<float>(newGAmount))/268438975.0f << " " <<
-        (static_cast<float>(268433282) - static_cast<float>(newTAmount))/268433282.0f << "\n";
+        ((actualAAmountF - static_cast<float>(newAAmount))/actualAAmountF) * 100.0f << "% " <<
+        ((actualCAmountF - static_cast<float>(newCAmount))/actualCAmountF) * 100.0f << "% " <<
+        ((actualGAmountF - static_cast<float>(newGAmount))/actualGAmountF) * 100.0f << "% " <<
+        ((actualTAmountF - static_cast<float>(newTAmount))/actualTAmountF) * 100.0f << "%\n";
 }
