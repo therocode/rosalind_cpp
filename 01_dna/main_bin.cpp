@@ -14,7 +14,7 @@ std::vector<uint8_t> loadBinFile(const std::string& path)
 int main()
 {
     std::cout << "loading file\n";
-    std::vector<uint8_t> data = loadBinFile("../tools_datageneration/binout.txt");
+    std::vector<uint8_t> data = loadBinFile("binout.txt");
 
     int32_t aAmount = 0;
     int32_t cAmount = 0;

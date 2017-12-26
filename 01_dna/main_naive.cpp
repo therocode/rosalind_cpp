@@ -12,7 +12,7 @@ std::string loadFile(const std::string& path)
 int main()
 {
     std::cout << "loading file\n";
-    std::string data = loadFile("../tools_datageneration/textout.txt");
+    std::string data = loadFile("textout.txt");
 
     int32_t aAmount = 0;
     int32_t cAmount = 0;
