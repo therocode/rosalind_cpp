@@ -139,9 +139,19 @@ static_assert(extractTCount(countTable[testCompressed]) == 2, "countTable is inc
 
 std::vector<uint8_t> loadBinFile(const std::string& path)
 {
-    std::ifstream inFile(path, std::ios::binary);
+    std::ifstream inFile(path);
 
-    std::vector<uint8_t> result((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+    //determine the file length
+    inFile.seekg(0, std::ios_base::end);
+    size_t sizeInBytes = inFile.tellg();
+    inFile.seekg(0, std::ios_base::beg);
+
+    //create a vector to store the data
+    std::vector<uint8_t> result(sizeInBytes);
+
+    //load the data
+    inFile.read(reinterpret_cast<char*>(&result[0]), sizeInBytes);
+
     return result;
 }
 
