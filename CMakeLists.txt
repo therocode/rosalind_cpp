@@ -1,10 +1,12 @@
 cmake_minimum_required (VERSION 3.8)
 project (rosalind_cpp)
 
+
 set(01_dna_root "01_dna")
 add_executable(01_dna_naive "${01_dna_root}/main_naive.cpp")
 add_executable(01_dna_bin "${01_dna_root}/main_bin.cpp")
 add_executable(01_dna_bin_multi "${01_dna_root}/main_bin_multi.cpp")
+set_property(TARGET 01_dna_bin_multi PROPERTY CXX_STANDARD 17)
 add_executable(01_dna_bin_multi_stat "${01_dna_root}/main_bin_multi_stat.cpp")
 
 set(tools_root "tools")
