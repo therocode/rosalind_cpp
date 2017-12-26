@@ -138,19 +138,26 @@ static_assert(extractCCount(countTable[testCompressed]) == 1, "countTable is inc
 static_assert(extractGCount(countTable[testCompressed]) == 0, "countTable is incorrect");
 static_assert(extractTCount(countTable[testCompressed]) == 2, "countTable is incorrect");
 
-std::string loadFile(const std::string& path)
+std::vector<uint8_t> loadBinFile(const std::string& path)
 {
     std::ifstream inFile(path);
-    std::string result((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+
+    //determine the file length
+    inFile.seekg(0, std::ios_base::end);
+    size_t sizeInBytes = inFile.tellg();
+    inFile.seekg(0, std::ios_base::beg);
+
+    //create a vector to store the data
+    std::vector<uint8_t> result(sizeInBytes);
+
+    //load the data
+    inFile.read(reinterpret_cast<char*>(&result[0]), sizeInBytes);
+
     return result;
 }
 
-std::vector<uint8_t> loadBinFile(const std::string& path)
+std::vector<uint8_t> sampleBinFile(const std::string& path)
 {
-    std::ifstream inFile(path, std::ios::binary);
-
-    std::vector<uint8_t> result((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
-    return result;
 }
 
 std::vector<int32_t> generateSamplingPoints(int32_t nSamplePoints, int32_t sampleLength, size_t dataLength)
@@ -174,8 +181,7 @@ int main()
 {
     std::cout << "------------------\n";
     std::cout << "loading file\n";
-    //std::string data = loadFile("../tools_datageneration/textout.txt");
-    std::vector<uint8_t> data = loadBinFile("../tools_datageneration/binout.txt");
+    std::vector<uint8_t> data = loadBinFile("binout.txt");
 
     int32_t nSamplePoints = 32768;
     int32_t sampleLength = 1024;
