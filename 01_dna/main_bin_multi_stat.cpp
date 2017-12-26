@@ -179,7 +179,7 @@ FileStuff sampleBinFile(const std::string& path, int32_t nSamplePoints, int32_t 
     //load the data
     for(int32_t i = 0; i < nSamplePoints; ++i)
     {
-        int32_t position = randomEngine() % (fileSize - nCharsSampled);
+        size_t position = randomEngine() % (fileSize - nCharsSampled);
         inFile.seekg(position);
         inFile.read(reinterpret_cast<char*>(&result[nCharsSampled * i]), sampleSizeInBytes);
     }
