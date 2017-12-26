@@ -125,24 +125,17 @@ constexpr uint64_t countTable[256] =
     countCompressed(static_cast<uint8_t>(252)), countCompressed(static_cast<uint8_t>(253)), countCompressed(static_cast<uint8_t>(254)), countCompressed(static_cast<uint8_t>(255))
 };
 
+//tests to ensure table existing in compile time and to ensure the correctness of it
 static_assert(extractACount(countTable[0]) == 4, "countTable is incorrect");
 static_assert(extractCCount(countTable[0]) == 0, "countTable is incorrect");
 static_assert(extractGCount(countTable[0]) == 0, "countTable is incorrect");
 static_assert(extractTCount(countTable[0]) == 0, "countTable is incorrect");
 
 constexpr uint8_t testCompressed = static_cast<uint8_t>(1 | 3 << 2 | 0 << 4 | 3 << 6);
-
 static_assert(extractACount(countTable[testCompressed]) == 1, "countTable is incorrect");
 static_assert(extractCCount(countTable[testCompressed]) == 1, "countTable is incorrect");
 static_assert(extractGCount(countTable[testCompressed]) == 0, "countTable is incorrect");
 static_assert(extractTCount(countTable[testCompressed]) == 2, "countTable is incorrect");
-
-std::string loadFile(const std::string& path)
-{
-    std::ifstream inFile(path);
-    std::string result((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
-    return result;
-}
 
 std::vector<uint8_t> loadBinFile(const std::string& path)
 {
@@ -155,7 +148,6 @@ std::vector<uint8_t> loadBinFile(const std::string& path)
 int main()
 {
     std::cout << "loading file\n";
-    //std::string data = loadFile("../tools_datageneration/textout.txt");
     std::vector<uint8_t> data = loadBinFile("../tools_datageneration/binout.txt");
 
     int32_t aAmount = 0;
@@ -163,37 +155,16 @@ int main()
     int32_t gAmount = 0;
     int32_t tAmount = 0;
 
-    std::cout << "counting\n";
-
-    /*
-    for(uint8_t nucleotide : data)
-    {
-        switch(nucleotide)
-        {
-            case 'A':
-                ++aAmount;
-                break;
-            case 'C':
-                ++cAmount;
-                break;
-            case 'G':
-                ++gAmount;
-                break;
-            case 'T':
-                ++tAmount;
-                break;
-        }
-    }
-    */
-
     uint64_t compressedCount = 0;
     int32_t currentCompressedCountCount = 0;
 
+    std::cout << "counting\n";
     for(uint8_t compressed : data)
     {
         compressedCount += countTable[compressed];
         ++currentCompressedCountCount;
 
+        //to prevent overflow of our individual 16-bit counters, we need to extract and restart counters every uint16_t-max / 4 iterations, based on worst case of data containing only 1 nucleotide
         if(currentCompressedCountCount >= std::numeric_limits<uint16_t>::max() / 4)
         {
             aAmount += extractACount(compressedCount);
@@ -204,28 +175,9 @@ int main()
             compressedCount = 0;
             currentCompressedCountCount = 0;
         }
-        //for(int8_t charInByte = 0; charInByte < 8; charInByte += 2)
-        //{
-        //    uint8_t nucleotideIndex = (compressed >> charInByte) & 0b00000011;
-
-        //    switch(nucleotideIndex)
-        //    {
-        //        case 0:
-        //            ++aAmount;
-        //            break;
-        //        case 1:
-        //            ++cAmount;
-        //            break;
-        //        case 2:
-        //            ++gAmount;
-        //            break;
-        //        case 3:
-        //            ++tAmount;
-        //            break;
-        //    }
-        //}
     }
 
+    //any residual counts will be picked up here
     aAmount += extractACount(compressedCount);
     cAmount += extractCCount(compressedCount);
     gAmount += extractGCount(compressedCount);

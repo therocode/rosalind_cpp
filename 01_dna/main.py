@@ -1,4 +1,4 @@
-with open('../tools_datageneration/output.txt', 'r') as inFile:
+with open('../tools_datageneration/textout.txt', 'r') as inFile:
 
   print("reading data file")
   data = inFile.read()
