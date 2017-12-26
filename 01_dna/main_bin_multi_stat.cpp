@@ -1,3 +1,4 @@
+#include <cmath>
 #include <random>
 #include <fstream>
 #include <string>
@@ -168,7 +169,7 @@ FileStuff sampleBinFile(const std::string& path, int32_t nSamplePoints, int32_t 
     std::ranlux48_base randomEngine((std::random_device()()));
 
     //create a vector to store the data
-    size_t sampleSizeInBytes = nCharsSampled * 4;
+    size_t sampleSizeInBytes = nCharsSampled;
     size_t sampledDataInBytes = nSamplePoints * nCharsSampled;
     std::vector<uint8_t> result(sampledDataInBytes);
 
@@ -181,7 +182,7 @@ FileStuff sampleBinFile(const std::string& path, int32_t nSamplePoints, int32_t 
     {
         size_t position = randomEngine() % (fileSize - nCharsSampled);
         inFile.seekg(position);
-        inFile.read(reinterpret_cast<char*>(&result[nCharsSampled * i]), sampleSizeInBytes);
+        inFile.read(reinterpret_cast<char*>(&result.at(nCharsSampled * i)), sampleSizeInBytes);
     }
 
     return FileStuff({std::move(result), fileSize});
@@ -189,11 +190,11 @@ FileStuff sampleBinFile(const std::string& path, int32_t nSamplePoints, int32_t 
 
 int main()
 {
-    std::cout << "------------------\n";
     std::cout << "loading file\n";
 
+    //int32_t nSamplePoints = 2;
     int32_t nSamplePoints = 32768;
-    int32_t nCharsSampled = 1024;
+    int32_t nCharsSampled = 4096;
 
     FileStuff filestuff = sampleBinFile("binout.txt", nSamplePoints, nCharsSampled);
 
@@ -253,17 +254,19 @@ int main()
     std::cout << "We can approximate the whole file to contain:\n";
     std::cout << newAAmount << " " << newCAmount << " " << newGAmount << " " << newTAmount << "\n";
 
+    /*
     std::cout << "Comparing to the actual data:\n";
     std::cout <<
         actualAAmount - newAAmount << " " <<
         actualCAmount - newCAmount << " " <<
         actualGAmount - newGAmount << " " <<
         actualTAmount - newTAmount << "\n";
+    */
 
     std::cout << "Percentage errors:\n";
     std::cout <<
-        ((actualAAmountF - static_cast<float>(newAAmount))/actualAAmountF) * 100.0f << "% " <<
-        ((actualCAmountF - static_cast<float>(newCAmount))/actualCAmountF) * 100.0f << "% " <<
-        ((actualGAmountF - static_cast<float>(newGAmount))/actualGAmountF) * 100.0f << "% " <<
-        ((actualTAmountF - static_cast<float>(newTAmount))/actualTAmountF) * 100.0f << "%\n";
+        fabs((actualAAmountF - static_cast<float>(newAAmount))/actualAAmountF) * 100.0f << "% " <<
+        fabs((actualCAmountF - static_cast<float>(newCAmount))/actualCAmountF) * 100.0f << "% " <<
+        fabs((actualGAmountF - static_cast<float>(newGAmount))/actualGAmountF) * 100.0f << "% " <<
+        fabs((actualTAmountF - static_cast<float>(newTAmount))/actualTAmountF) * 100.0f << "%\n";
 }
