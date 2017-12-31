@@ -139,24 +139,6 @@ static_assert(extractCCount(countTable[testCompressed]) == 1, "countTable is inc
 static_assert(extractGCount(countTable[testCompressed]) == 0, "countTable is incorrect");
 static_assert(extractTCount(countTable[testCompressed]) == 2, "countTable is incorrect");
 
-std::vector<uint8_t> loadBinFile(const std::string& path)
-{
-    std::ifstream inFile(path);
-
-    //determine the file length
-    inFile.seekg(0, std::ios_base::end);
-    size_t sizeInBytes = inFile.tellg();
-    inFile.seekg(0, std::ios_base::beg);
-
-    //create a vector to store the data
-    std::vector<uint8_t> result(sizeInBytes);
-
-    //load the data
-    inFile.read(reinterpret_cast<char*>(&result[0]), sizeInBytes);
-
-    return result;
-}
-
 struct FileStuff
 {
     std::vector<uint8_t> data;
