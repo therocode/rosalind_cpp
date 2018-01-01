@@ -4,6 +4,8 @@
 #include <vector>
 #include <limits>
 #include <array>
+#include <thread>
+#include <atomic>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -111,44 +113,80 @@ BinFile loadBinFile(const std::string& path)
     return result;
 }
 
+struct CountData
+{
+    std::atomic<int32_t> aAmount;
+    std::atomic<int32_t> cAmount;
+    std::atomic<int32_t> gAmount;
+    std::atomic<int32_t> tAmount;
+};
+
 int main()
 {
     std::cout << "loading file\n";
     BinFile data = loadBinFile("binout.txt");
 
-    int32_t aAmount = 0;
-    int32_t cAmount = 0;
-    int32_t gAmount = 0;
-    int32_t tAmount = 0;
+    CountData sharedResult{};
 
-    uint64_t compressedCount = 0;
-    int32_t currentCompressedCountCount = 0;
+    auto job = [&sharedResult] (char* dataPointerStart, char* dataEnd)
+    {
+        int32_t aAmount = 0;
+        int32_t cAmount = 0;
+        int32_t gAmount = 0;
+        int32_t tAmount = 0;
+
+        uint64_t compressedCount = 0;
+        int32_t currentCompressedCountCount = 0;
+
+        for(char* currentData = dataPointerStart; currentData != dataEnd; ++ currentData)
+        {
+            compressedCount += countTable[static_cast<uint8_t>(*currentData)];
+            ++currentCompressedCountCount;
+
+            //to prevent overflow of our individual 16-bit counters, we need to extract and restart counters every uint16_t-max / 4 iterations, based on worst case of data containing only 1 nucleotide
+            if(currentCompressedCountCount >= std::numeric_limits<uint16_t>::max() / 4)
+            {
+                aAmount += extractACount(compressedCount);
+                cAmount += extractCCount(compressedCount);
+                gAmount += extractGCount(compressedCount);
+                tAmount += extractTCount(compressedCount);
+
+                compressedCount = 0;
+                currentCompressedCountCount = 0;
+            }
+        }
+
+        //any residual counts will be picked up here
+        aAmount += extractACount(compressedCount);
+        cAmount += extractCCount(compressedCount);
+        gAmount += extractGCount(compressedCount);
+        tAmount += extractTCount(compressedCount);
+
+        sharedResult.aAmount += aAmount;
+        sharedResult.cAmount += cAmount;
+        sharedResult.gAmount += gAmount;
+        sharedResult.tAmount += tAmount;
+    };
+
+    int32_t threadCount = 4;
+    std::vector<std::thread> threads;
+
+    size_t threadSegmentSize = data.size / 4;
+    size_t currentThreadStartIndex = 0;
 
     std::cout << "counting\n";
-    char* end = data.start + data.size;
-    for(char* current = data.start; current != end; ++current)
+
+    for(int32_t i = 0; i < threadCount; ++i)
     {
-        compressedCount += countTable[static_cast<uint8_t>(*current)];
-        ++currentCompressedCountCount;
-
-        //to prevent overflow of our individual 16-bit counters, we need to extract and restart counters every uint16_t-max / 4 iterations, based on worst case of data containing only 1 nucleotide
-        if(currentCompressedCountCount >= std::numeric_limits<uint16_t>::max() / 4)
-        {
-            aAmount += extractACount(compressedCount);
-            cAmount += extractCCount(compressedCount);
-            gAmount += extractGCount(compressedCount);
-            tAmount += extractTCount(compressedCount);
-
-            compressedCount = 0;
-            currentCompressedCountCount = 0;
-        }
+        char* currentThreadStart = data.start + currentThreadStartIndex;
+        threads.emplace_back(job, currentThreadStart, currentThreadStart + threadSegmentSize);
+        currentThreadStartIndex += threadSegmentSize;
     }
 
-    //any residual counts will be picked up here
-    aAmount += extractACount(compressedCount);
-    cAmount += extractCCount(compressedCount);
-    gAmount += extractGCount(compressedCount);
-    tAmount += extractTCount(compressedCount);
+    for(int32_t i = 0; i < threadCount; ++i)
+    {
+        threads[i].join();
+    }
 
-    std::cout << aAmount << " " << cAmount << " " << gAmount << " " << tAmount << "\n";
+    std::cout << sharedResult.aAmount << " " << sharedResult.cAmount << " " << sharedResult.gAmount << " " << sharedResult.tAmount << "\n";
 }
