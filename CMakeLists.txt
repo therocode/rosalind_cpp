@@ -9,6 +9,8 @@ add_executable(01_dna_naive "${01_dna_root}/main_naive.cpp")
 add_executable(01_dna_bin "${01_dna_root}/main_bin.cpp")
 add_executable(01_dna_bin_multi "${01_dna_root}/main_bin_multi.cpp")
 set_property(TARGET 01_dna_bin_multi PROPERTY CXX_STANDARD 17)
+add_executable(01_dna_bin_multi_mmap "${01_dna_root}/main_bin_multi_mmap.cpp")
+set_property(TARGET 01_dna_bin_multi_mmap PROPERTY CXX_STANDARD 17)
 add_executable(01_dna_bin_multi_thread "${01_dna_root}/main_bin_multi_thread.cpp")
 
 set_property(TARGET 01_dna_bin_multi_thread PROPERTY CXX_STANDARD 17)
